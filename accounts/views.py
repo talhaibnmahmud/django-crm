@@ -1,10 +1,9 @@
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.models import Group
+from django.db.models.query import QuerySet
 from django.forms import inlineformset_factory
-from django.http import HttpResponse
+from django.http.request import HttpRequest
 from django.shortcuts import render, redirect
 
 from .decorators import admin_only, allowed_users, unauthenticated_user
@@ -16,190 +15,190 @@ from .forms import CreateUserForm, CustomerForm, OrderForm
 # Create your views here.
 
 @unauthenticated_user
-def registerPage(request):
-	"""Function DocString"""
-	form = CreateUserForm()
+def registerPage(request: HttpRequest):
+    """Function DocString"""
+    form = CreateUserForm()
 
-	if request.method == 'POST':
-		form = CreateUserForm(request.POST)
-		if form.is_valid():
-			user = form.save()
-			username = form.cleaned_data.get('username')
-			
-			messages.success(request, 'Account was created for ' + username)
+    if request.method == 'POST':
+        form = CreateUserForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            username = form.cleaned_data.get('username')
 
-			return redirect('login')
+            messages.success(request, 'Account was created for ' + username)
 
-	context = {'form': form}
+            return redirect('login')
 
-	return render(request, 'accounts/register.html', context)
+    context = {'form': form}
+
+    return render(request, 'accounts/register.html', context)
 
 
 @unauthenticated_user
-def loginPage(request):
-	"""Function DocString"""
-	if request.method == 'POST':
-		username = request.POST.get('username')
-		password = request.POST.get('password')
+def loginPage(request: HttpRequest):
+    """Function DocString"""
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
 
-		user = authenticate(request, username=username, password=password)
+        user = authenticate(request, username=username, password=password)
 
-		if user is not None:
-			login(request, user)
-			return redirect('home')
-		else:
-			messages.info(request, 'Username or Password is incorrect')
+        if user is not None:
+            login(request, user)
+            return redirect('home')
+        else:
+            messages.info(request, 'Username or Password is incorrect')
 
-	context = {}
-
-	return render(request, 'accounts/login.html', context)
+    return render(request, 'accounts/login.html', {})
 
 
-def logoutUser(request):
-	"""Function DocString"""
-	logout(request)
-	return redirect('login')
+def logoutUser(request: HttpRequest):
+    """Function DocString"""
+    logout(request)
+    return redirect('login')
 
 
 @login_required(login_url='login')
 @admin_only
-def home(request):
-	"""Function DocString"""
-	orders = Order.objects.all()
-	customers = Customer.objects.all()
+def home(request: HttpRequest):
+    """Function DocString"""
+    orders = Order.objects.all()
+    customers = Customer.objects.all()
 
-	total_customers = customers.count()
-	total_orders = orders.count()
-	delivered = orders.filter(status='Delivered').count()
-	pending = orders.filter(status='Pending').count()
+    total_customers = customers.count()
+    total_orders = orders.count()
+    delivered = orders.filter(status='Delivered').count()
+    pending = orders.filter(status='Pending').count()
 
-	context = {'orders': orders, 
-				'customers': customers, 
-				'total_customers': total_customers, 
-				'total_orders': total_orders, 
-				'delivered': delivered, 
-				'pending': pending}
+    context = {'orders': orders,
+               'customers': customers,
+               'total_customers': total_customers,
+               'total_orders': total_orders,
+               'delivered': delivered,
+               'pending': pending}
 
-	return render(request, 'accounts/dashboard.html', context)
-
-
-@login_required(login_url='login')
-@allowed_users(allowed_roles=['customer'])
-def userPage(request):
-	"""Function DocString"""
-	orders = request.user.customer.order_set.all()
-	# print('ORDERS: ', orders)
-
-	total_orders = orders.count()
-	delivered = orders.filter(status='Delivered').count()
-	pending = orders.filter(status='Pending').count()
-
-	context = {'orders': orders, 
-				'total_orders': total_orders, 
-				'delivered': delivered, 
-				'pending': pending}
-
-	return render(request, 'accounts/user.html', context)
+    return render(request, 'accounts/dashboard.html', context)
 
 
 @login_required(login_url='login')
 @allowed_users(allowed_roles=['customer'])
-def accountSettings(request):
-	"""Function DocString"""
-	customer = request.user.customer
-	form = CustomerForm(instance=customer)
+def userPage(request: HttpRequest):
+    """Function DocString"""
+    orders: QuerySet[Order] = request.user.customer.order_set.all()
+    # print('ORDERS: ', orders)
 
-	if request.method == 'POST':
-		form = CustomerForm(request.POST, request.FILES, instance=customer)
+    total_orders = orders.count()
+    delivered = orders.filter(status='Delivered').count()
+    pending = orders.filter(status='Pending').count()
 
-		if form.is_valid():
-			form.save()
+    context = {'orders': orders,
+               'total_orders': total_orders,
+               'delivered': delivered,
+               'pending': pending}
 
-	context = {'form': form}
+    return render(request, 'accounts/user.html', context)
 
-	return render(request, 'accounts/account_settings.html', context)
+
+@login_required(login_url='login')
+@allowed_users(allowed_roles=['customer'])
+def accountSettings(request: HttpRequest):
+    """Function DocString"""
+    customer = request.user.customer
+    form = CustomerForm(instance=customer)
+
+    if request.method == 'POST':
+        form = CustomerForm(request.POST, request.FILES, instance=customer)
+
+        if form.is_valid():
+            form.save()
+
+    context = {'form': form}
+
+    return render(request, 'accounts/account_settings.html', context)
 
 
 @login_required(login_url='login')
 @allowed_users(allowed_roles=['admin'])
-def products(request):
-	"""Function DocString"""
-	products = Product.objects.all()
+def products(request: HttpRequest):
+    """Function DocString"""
+    products = Product.objects.all()
 
-	return render(request, 'accounts/products.html', {'products': products})
-
-
-@login_required(login_url='login')
-@allowed_users(allowed_roles=['admin'])
-def customer(request, pk):
-	"""Function DocString"""
-	customer = Customer.objects.get(id=pk)
-	orders = customer.order_set.all()
-	order_count = orders.count()
-
-	myFilter = OrderFilter(request.GET, queryset=orders)
-	orders = myFilter.qs
-
-	context = {'customer': customer, 'orders': orders, 'order_count': order_count, 'myFilter': myFilter}
-
-	return render(request, 'accounts/customer.html', context)
+    return render(request, 'accounts/products.html', {'products': products})
 
 
 @login_required(login_url='login')
 @allowed_users(allowed_roles=['admin'])
-def createOrder(request, pk):
-	"""Function DocString"""
-	OrderFormSet = inlineformset_factory(Customer, Order, fields=('product', 'status'), extra=10)
-	customer = Customer.objects.get(id=pk)
-	formset = OrderFormSet(queryset=Order.objects.none(), instance=customer)
-	# form = OrderForm(initial={'customer': customer})
+def customer(request: HttpRequest, pk: str):
+    """Function DocString"""
+    customer = Customer.objects.get(id=pk)
+    orders = customer.order_set.all()
+    order_count = orders.count()
 
-	if request.method == 'POST':
-		# print('Printing POST: ', request.POST)
-		# form = OrderForm(request.POST)
-		formset = OrderFormSet(request.POST, instance=customer)
+    myFilter = OrderFilter(request.GET, queryset=orders)
+    orders = myFilter.qs
 
-		if formset.is_valid():
-			formset.save()
+    context = {'customer': customer, 'orders': orders,
+               'order_count': order_count, 'myFilter': myFilter}
 
-			return redirect('/')
-
-	context = {'formset': formset}
-
-	return render(request, 'accounts/order_form.html', context)
+    return render(request, 'accounts/customer.html', context)
 
 
 @login_required(login_url='login')
 @allowed_users(allowed_roles=['admin'])
-def updateOrder(request, pk):
-	"""Function DocString"""
-	order = Order.objects.get(id=pk)
-	form = OrderForm(instance=order)
+def createOrder(request: HttpRequest, pk: str):
+    """Function DocString"""
+    OrderFormSet = inlineformset_factory(
+        Customer, Order, fields=('product', 'status'), extra=10)
+    customer = Customer.objects.get(id=pk)
+    formset = OrderFormSet(queryset=Order.objects.none(), instance=customer)
+    # form = OrderForm(initial={'customer': customer})
 
-	if request.method == 'POST':
-		# print('Printing POST: ', request.POST)
-		form = OrderForm(request.POST, instance=order)
+    if request.method == 'POST':
+        # print('Printing POST: ', request.POST)
+        # form = OrderForm(request.POST)
+        formset = OrderFormSet(request.POST, instance=customer)
 
-		if form.is_valid():
-			form.save()
+        if formset.is_valid():
+            formset.save()
 
-			return redirect('/')
+            return redirect('/')
 
-	context = {'form': form}
+    context = {'formset': formset}
 
-	return render(request, 'accounts/order_form.html', context)
+    return render(request, 'accounts/order_form.html', context)
 
 
 @login_required(login_url='login')
 @allowed_users(allowed_roles=['admin'])
-def deleteOrder(request, pk):
-	"""Function DocString"""
-	order = Order.objects.get(id=pk)
+def updateOrder(request: HttpRequest, pk: str):
+    """Function DocString"""
+    order = Order.objects.get(id=pk)
+    form = OrderForm(instance=order)
 
-	if request.method == 'POST':
-		order.delete()
-		return redirect('/')
-	
-	context = {'item': order}
+    if request.method == 'POST':
+        # print('Printing POST: ', request.POST)
+        form = OrderForm(request.POST, instance=order)
 
-	return render(request, 'accounts/delete.html', context)
+        if form.is_valid():
+            form.save()
+
+            return redirect('/')
+
+    context = {'form': form}
+
+    return render(request, 'accounts/order_form.html', context)
+
+
+@login_required(login_url='login')
+@allowed_users(allowed_roles=['admin'])
+def deleteOrder(request: HttpRequest, pk: str):
+    """Function DocString"""
+    order = Order.objects.get(id=pk)
+
+    if request.method == 'POST':
+        order.delete()
+        return redirect('/')
+
+    context = {'item': order}
+
+    return render(request, 'accounts/delete.html', context)

@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 import os
 
 from pathlib import Path
+from typing import Union
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -59,7 +60,8 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'crm.urls'
 
-TEMPLATES = [
+TEMPLATES: Union[
+    list[dict[str, Union[str , bool , dict[str, list[str]] , list[str]]]]] = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [],

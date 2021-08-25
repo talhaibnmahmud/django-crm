@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Customer, Product, Tag, Order
+from accounts.models import Customer, Product, Tag, Order
 
 
 # Register your models here.
